@@ -4,8 +4,8 @@ env:
   CERT_MANAGER_VERSION: 1.15.3
   ARGOCD_VERSION: 7.4.4
   ARGO_ROLLOUTS_VERSION: 2.37.5
-  KARGO_VERSION: 0.8.0
-  GITOPS_REPO_URL: https://github.com/basbremer/kargo-demo.git
+  KARGO_VERSION: 0.8.7
+  GITOPS_REPO_URL: https://github.com/fullstaq-labs/edgecase2024-kargo-demo.git
 
 tasks:
   ###################################################################################################################
@@ -20,7 +20,7 @@ tasks:
   ###################################################################################################################
   install_kargo_cli:
     cmds:
-      - curl -L -o /tmp/kargo https://github.com/akuity/kargo/releases/download/v0.8.0/kargo-darwin-arm64
+      - curl -L -o /tmp/kargo https://github.com/akuity/kargo/releases/download/v0.8.5/kargo-linux-amd64
       - chmod +x /tmp/kargo
       - sudo mv /tmp/kargo /usr/local/bin
 
