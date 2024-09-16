@@ -1,0 +1,32 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: ${KARGO_PROJECT}
+  namespace: argocd
+spec:
+  generators:
+  - list:
+      elements:
+      - stage: test
+      - stage: uat
+      - stage: pre-prod-a
+      - stage: pre-prod-b
+      - stage: prod-canary
+      - stage: prod-ga
+  template:
+    metadata:
+      name: ${KARGO_PROJECT}-{{stage}}
+      annotations:
+        kargo.akuity.io/authorized-stage: ${KARGO_PROJECT}:{{stage}}
+    spec:
+      project: default
+      source:
+        repoURL: ${GITOPS_REPO_URL}
+        targetRevision: main #stage/{{stage}}
+        path: advanced/stages/{{stage}}
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: ${KARGO_PROJECT}-{{stage}}
+      syncPolicy:
+        syncOptions:
+        - CreateNamespace=true

@@ -1,0 +1,15 @@
+apiVersion: k3d.io/v1alpha5
+kind: Simple
+metadata:
+  name: kargo-workshop
+volumes:
+  - volume: server-0-var-lib-rancher-k3s-agent-containerd:/var/lib/rancher/k3s/agent/containerd
+    nodeFilters:
+      - server:0
+ports:
+  - port: 31444:31444
+    nodeFilters:
+      - server:0
+  - port: 31443:31443
+    nodeFilters:
+      - server:0
