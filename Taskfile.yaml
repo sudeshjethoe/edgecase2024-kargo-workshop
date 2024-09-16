@@ -1,0 +1,191 @@
+version: '3'
+
+env:
+  CERT_MANAGER_VERSION: 1.15.3
+  ARGOCD_VERSION: 7.4.4
+  ARGO_ROLLOUTS_VERSION: 2.37.5
+  KARGO_VERSION: 0.8.0
+  GITOPS_REPO_URL: https://github.com/basbremer/kargo-demo.git
+
+tasks:
+  ###################################################################################################################
+  ## Default task
+  ###################################################################################################################
+  default:
+    cmds:
+      - task --list-all
+
+  ###################################################################################################################
+  ## Basic tooling
+  ###################################################################################################################
+  install_kargo_cli:
+    cmds:
+      - curl -L -o /tmp/kargo https://github.com/akuity/kargo/releases/download/v0.8.0/kargo-darwin-arm64
+      - chmod +x /tmp/kargo
+      - sudo mv /tmp/kargo /usr/local/bin
+
+  install_gum:
+    cmds:
+      - brew install gum
+  
+  ###################################################################################################################
+  ## Create Kubneretes cluster and install required applications
+  ###################################################################################################################
+  initial_setup:
+    cmds:
+      - task: create_aliasses
+      - task: create_cluster
+      - task: install_cert_manager
+      - task: install_argocd
+      - task: install_argo_rollouts
+      - task: install_kargo
+
+  create_aliasses:
+    desc: "Create kubectl aliasses"
+    silent: true
+    cmds:
+      - echo "" >> /home/vscode/.bashrc
+      - echo "alias k='kubectl'" >> /home/vscode/.bashrc
+      - echo "alias kns='kubens'" >> /home/vscode/.bashrc
+      - echo "alias kgp='kubectl get pods'" >> /home/vscode/.bashrc
+      - echo "alias kgs='kubectl get svc'" >> /home/vscode/.bashrc
+      - echo "alias kgn='kubectl get nodes'" >> /home/vscode/.bashrc
+      - echo "alias keti='kubectl exec -ti'" >> /home/vscode/.bashrc
+      - source /home/vscode/.bashrc
+
+  create_cluster:
+    env:
+      CLUSTER_EXISTS:
+        sh: k3d cluster list | grep kargo-workshop | wc -l | tr -d ' '
+    desc: "Initial setup"
+    silent: true
+    cmds:
+      - |
+        if [[ "$CLUSTER_EXISTS" == "0" ]]; then
+          gum log -s -l info -t ansic "Creating a new cluster"
+          gum spin -s minidot --title="Create cluster" -- k3d cluster create kargo-workshop -c ./k3d/config.yaml
+        else
+          gum log -s -l info -t ansic "Cluster already exists"
+        fi
+
+  install_cert_manager:
+    env:
+      CERT_MANAGER_INSTALLED:
+        sh: helm list -n cert-manager | grep cert-manager | wc -l | tr -d ' '
+    desc: "Install cert-manager"
+    silent: true
+    cmds:
+      - |
+        if [[ "$CERT_MANAGER_INSTALLED" == "0" ]]; then
+          gum log -s -l info -t ansic "Installing Cert-Manager"
+          gum spin -s minidot --title="Install Cert Manager" -- helm install cert-manager cert-manager --repo https://charts.jetstack.io --version $CERT_MANAGER_VERSION --namespace cert-manager --create-namespace --set installCRDs=true --wait
+        else
+          gum log -s -l info -t ansic "Cert-Manager already installed"
+        fi
+  
+  install_argocd:
+    env:
+      ARGOCD_INSTALLED:
+        sh: helm list -n argocd | grep argocd | wc -l | tr -d ' '
+    desc: "Install ArgoCD"
+    silent: true
+    cmds:
+      - |
+        if [[ "$ARGOCD_INSTALLED" == "0" ]]; then
+          gum log -s -l info -t ansic "Installing ArgoCD"
+          gum spin -s minidot --title="Install ArgoCD" -- helm install argocd argo-cd --repo https://argoproj.github.io/argo-helm --version $ARGOCD_VERSION --namespace argocd --create-namespace --set 'configs.secret.argocdServerAdminPassword=$2a$10$5vm8wXaSdbuff0m9l21JdevzXBzJFPCi8sy6OOnpZMAG.fOXL7jvO' --set dex.enabled=false --set notifications.enabled=false --set server.service.type=NodePort --set server.service.nodePortHttp=31443 --set server.extensions.enabled=true --set 'server.extensions.contents[0].name=argo-rollouts' --set 'server.extensions.contents[0].url=https://github.com/argoproj-labs/rollout-extension/releases/download/v0.3.3/extension.tar' --wait
+        else
+          gum log -s -l info -t ansic "ArgoCD already installed"
+        fi
+  
+  install_argo_rollouts:
+    env:
+      ARGO_ROLLOUTS_INSTALLED:
+        sh: helm list -n argo-rollouts | grep argo-rollouts | wc -l | tr -d ' '
+    desc: "Install Argo Rollouts"
+    silent: true
+    cmds:
+      - |
+        if [[ "$ARGO_ROLLOUTS_INSTALLED" == "0" ]]; then
+          gum log -s -l info -t ansic "Installing Argo Rollouts"
+          gum spin -s minidot --title="Install Argo Rollouts" -- helm install argo-rollouts argo-rollouts --repo https://argoproj.github.io/argo-helm --version $ARGO_ROLLOUTS_VERSION --create-namespace --namespace argo-rollouts --wait
+        else
+          gum log -s -l info -t ansic "Argo Rollouts already installed"
+        fi
+  
+  install_kargo:
+    env:
+      KARGO_INSTALLED:
+        sh: helm list -n kargo | grep kargo | wc -l | tr -d ' '
+    desc: "Install Kargo"
+    silent: true
+    cmds:
+      - |
+        if [[ "$KARGO_INSTALLED" == "0" ]]; then
+          gum log -s -l info -t ansic "Installing Kargo"
+          gum spin -s minidot --title="Install Kargo" -- helm install kargo oci://ghcr.io/akuity/kargo-charts/kargo --version $KARGO_VERSION --namespace kargo --create-namespace --set api.service.type=NodePort --set api.service.nodePort=31444 --set api.adminAccount.passwordHash='$2a$10$Zrhhie4vLz5ygtVSaif6o.qN36jgs6vjtMBdM6yrU1FOeiAAMMxOm' --set api.adminAccount.tokenSigningKey=iwishtowashmyirishwristwatch --wait
+        else
+          gum log -s -l info -t ansic "Kargo already installed"
+        fi
+
+  ###################################################################################################################
+  ## Demo steps
+  ###################################################################################################################
+  init_basic:
+    env:
+      GITHUB_USERNAME:
+        sh: gum input --header "What is your Github username?"
+      GITHUB_PAT:
+        sh: gum input --header "What is your Github personal access token?" --password
+      KARGO_PROJECT: "demo-basic"
+    cmds:
+      - cat ./demo-basic/argocd.yaml | envsubst | kubectl apply -f -
+      - kargo login https://localhost:31444 --admin --password=admin --insecure-skip-tls-verify
+      - |
+        KARGO_MEETUP_CONFIG=$(cat ./demo-basic/kargo.yaml | envsubst)
+        cat ./demo-basic/kargo.yaml | envsubst > /tmp/kargo-meetup.yaml
+        kargo apply -f /tmp/kargo-meetup.yaml
+        rm -rf /tmp/kargo-meetup.yaml
+
+  init_advanced:
+    env:
+      GITHUB_USERNAME:
+        sh: gum input --header "What is your Github username?"
+      GITHUB_PAT:
+        sh: gum input --header "What is your Github personal access token?" --password
+      KARGO_PROJECT: "demo-advanced"
+    cmds:
+      - cat ./demo-advanced/argocd.yaml | envsubst | kubectl apply -f -
+      - kargo login https://localhost:31444 --admin --password=admin --insecure-skip-tls-verify
+      - |
+        KARGO_MEETUP_CONFIG=$(cat ./demo-advanced/kargo.yaml | envsubst)
+        cat ./demo-advanced/kargo.yaml | envsubst > /tmp/kargo-meetup.yaml
+        kargo apply -f /tmp/kargo-meetup.yaml
+        rm -rf /tmp/kargo-meetup.yaml
+
+  ###################################################################################################################
+  ## Cleanup
+  ###################################################################################################################
+  cleanup_kargo_config:
+    env:
+      KARGO_PROJECT:
+        sh: kargo get projects -o json | jq -r '.items[]?.metadata.name' | gum choose --header "What project do you want to delete?"
+    cmds:
+      - kargo delete project ${KARGO_PROJECT}
+      - cat ./${KARGO_PROJECT}/argocd.yaml | envsubst | kubectl delete -f -
+
+  cleanup_full:
+    env:
+      CLUSTER_EXISTS:
+        sh: k3d cluster list | grep kargo-workshop | wc -l | tr -d ' '
+    desc: "Initial setup"
+    silent: true
+    cmds:
+      - |
+        if [[ "$CLUSTER_EXISTS" == "0" ]]; then
+          gum log -s -l info -t ansic "Cluster does not exist"
+        else
+          gum log -s -l info -t ansic "Cluster exists, start cleanup"
+          k3d cluster delete kargo-workshop
+        fi
+      

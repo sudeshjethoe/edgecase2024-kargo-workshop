@@ -1,0 +1,230 @@
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Project
+metadata:
+  name: ${KARGO_PROJECT}
+---
+apiVersion: v1
+kind: Secret
+type: Opaque
+metadata:
+  name: ${KARGO_PROJECT}-repo
+  namespace: ${KARGO_PROJECT}
+  labels:
+    kargo.akuity.io/cred-type: git
+stringData:
+  repoURL: ${GITOPS_REPO_URL}
+  username: ${GITHUB_USERNAME}
+  password: ${GITHUB_PAT}
+---
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Warehouse
+metadata:
+  name: ${KARGO_PROJECT}
+  namespace: ${KARGO_PROJECT}
+spec:
+  subscriptions:
+  - image:
+      repoURL: ghcr.io/linuxcontainers/alpine
+      semverConstraint: <3.20
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: succesfull-analysis
+  namespace: ${KARGO_PROJECT}
+spec:
+  metrics:
+  - name: test
+    provider:
+      job:
+        metadata:
+        spec:
+          backoffLimit: 1
+          template:
+            spec:
+              containers:
+              - name: test
+                image: ghcr.io/linuxcontainers/alpine:latest
+                command:
+                - sleep
+                - "10"
+              restartPolicy: Never
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: failing-analysis
+  namespace: ${KARGO_PROJECT}
+spec:
+  metrics:
+  - name: test
+    provider:
+      job:
+        metadata:
+        spec:
+          backoffLimit: 1
+          template:
+            spec:
+              containers:
+              - name: test
+                image: ghcr.io/linuxcontainers/alpine:latest
+                command:
+                - sleepzzzzzzzzz
+                - "10"
+              restartPolicy: Never
+---
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Stage
+metadata:
+  name: test
+  namespace: ${KARGO_PROJECT}
+spec:
+  requestedFreight:
+  - origin:
+      kind: Warehouse
+      name: ${KARGO_PROJECT}
+    sources:
+      direct: true
+  promotionMechanisms:
+    gitRepoUpdates:
+    - repoURL: ${GITOPS_REPO_URL}
+      writeBranch: main
+      kustomize:
+        images:
+        - image: ghcr.io/linuxcontainers/alpine
+          path: advanced/stages/test
+    argoCDAppUpdates:
+    - appName: ${KARGO_PROJECT}-test
+      appNamespace: argocd
+---
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Stage
+metadata:
+  name: uat
+  namespace: ${KARGO_PROJECT}
+spec:
+  requestedFreight:
+  - origin:
+      kind: Warehouse
+      name: ${KARGO_PROJECT}
+    sources:
+      stages:
+      - test
+  promotionMechanisms:
+    gitRepoUpdates:
+    - repoURL: ${GITOPS_REPO_URL}
+      writeBranch: main
+      kustomize:
+        images:
+        - image: ghcr.io/linuxcontainers/alpine
+          path: advanced/stages/uat
+    argoCDAppUpdates:
+    - appName: ${KARGO_PROJECT}-uat
+      appNamespace: argocd
+---
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Stage
+metadata:
+  name: pre-prod-a
+  namespace: ${KARGO_PROJECT}
+spec:
+  requestedFreight:
+  - origin:
+      kind: Warehouse
+      name: ${KARGO_PROJECT}
+    sources:
+      stages:
+      - uat
+  promotionMechanisms:
+    gitRepoUpdates:
+    - repoURL: ${GITOPS_REPO_URL}
+      writeBranch: main
+      kustomize:
+        images:
+        - image: ghcr.io/linuxcontainers/alpine
+          path: advanced/stages/pre-prod-a
+    argoCDAppUpdates:
+    - appName: ${KARGO_PROJECT}-pre-prod-a
+      appNamespace: argocd
+  verification:
+    analysisTemplates:
+    - name: succesfull-analysis
+---
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Stage
+metadata:
+  name: pre-prod-b
+  namespace: ${KARGO_PROJECT}
+spec:
+  requestedFreight:
+  - origin:
+      kind: Warehouse
+      name: ${KARGO_PROJECT}
+    sources:
+      stages:
+      - uat
+  promotionMechanisms:
+    gitRepoUpdates:
+    - repoURL: ${GITOPS_REPO_URL}
+      writeBranch: main
+      kustomize:
+        images:
+        - image: ghcr.io/linuxcontainers/alpine
+          path: advanced/stages/pre-prod-b
+    argoCDAppUpdates:
+    - appName: ${KARGO_PROJECT}-pre-prod-b
+      appNamespace: argocd
+  verification:
+    analysisTemplates:
+    - name: failing-analysis
+---
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Stage
+metadata:
+  name: prod-canary
+  namespace: ${KARGO_PROJECT}
+spec:
+  requestedFreight:
+  - origin:
+      kind: Warehouse
+      name: ${KARGO_PROJECT}
+    sources:
+      stages:
+      - pre-prod-a
+      - pre-prod-b
+  promotionMechanisms:
+    gitRepoUpdates:
+    - repoURL: ${GITOPS_REPO_URL}
+      writeBranch: main
+      kustomize:
+        images:
+        - image: ghcr.io/linuxcontainers/alpine
+          path: advanced/stages/prod-canary
+    argoCDAppUpdates:
+    - appName: ${KARGO_PROJECT}-prod-canary
+      appNamespace: argocd
+---
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Stage
+metadata:
+  name: prod-ga
+  namespace: ${KARGO_PROJECT}
+spec:
+  requestedFreight:
+  - origin:
+      kind: Warehouse
+      name: ${KARGO_PROJECT}
+    sources:
+      stages:
+      - prod-canary
+  promotionMechanisms:
+    gitRepoUpdates:
+    - repoURL: ${GITOPS_REPO_URL}
+      writeBranch: main
+      kustomize:
+        images:
+        - image: ghcr.io/linuxcontainers/alpine
+          path: advanced/stages/prod-ga
+    argoCDAppUpdates:
+    - appName: ${KARGO_PROJECT}-prod-ga
+      appNamespace: argocd
