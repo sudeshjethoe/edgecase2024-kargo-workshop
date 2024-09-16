@@ -2,7 +2,7 @@
 
 ## Steps for the workshop
 
-1. Go to [this repository](https://github.com/thisurlneedstobadded!!!!!) and fork it.\
+1. Go to [this repository](https://github.com/fullstaq-labs/edgecase2024-kargo-demo.git) and fork it.\
    Copy the URL of this forked repo, as you'll need it in the next step.
 
 2. Replace the value for the environment variable `GITOPS_REPO_URL` in the [Dockerfile](.devcontainer/Dockerfile) with the repo you just forked.
@@ -10,9 +10,9 @@
 3. Start the dev container, which can be done in 2 ways:
 
    * Open GitHub, clone this repo and open it locally in Visual Studio Code\
-     *Instructions*
+     ![instructions local vscode](./docs/local-vscode.gif)
    * Go to this Repo in GitHub and open Codespaces\
-     *Instructions*
+     ![instructions remote vscode](./docs/remote-vscode.gif)
 
 4. When the container starts, the following tools are installed:
 
