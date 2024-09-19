@@ -5,16 +5,14 @@
 1. Go to [this repository](https://github.com/fullstaq-labs/edgecase2024-kargo-demo.git) and fork it.\
    Copy the URL of this forked repo, as you'll need it in the next step.
 
-2. Replace the value for the environment variable `GITOPS_REPO_URL` in the [Dockerfile](.devcontainer/Dockerfile) with the repo you just forked.
-
-3. Start the dev container, which can be done in 2 ways:
+2. Start the dev container, which can be done in 2 ways:
 
    * Open GitHub, clone this repo and open it locally in Visual Studio Code\
      ![instructions local vscode](./docs/local-vscode.gif)
    * Go to this Repo in GitHub and open Codespaces\
      ![instructions remote vscode](./docs/remote-vscode.gif)
 
-4. When the container starts, the following tools are installed:
+3. When the container starts, the following tools are installed:
 
    * **Kind cluster**\
      Kargo needs to run on a Kubernetes cluster.
@@ -31,6 +29,11 @@
 > [!NOTE]
 > - [Task](https://taskfile.dev/) is used to orchestrate all these scripts.
 > - [Gum](https://github.com/charmbracelet/gum) is used for structured logs and a user-like interface.
+
+4. Run the following command in the container (the value should be the url of the repo you just forked.):
+   ```bash
+   export GITOPS_REPO_URL="<Replace this value>"
+   ```
 
 5. If you don't have a GitHub token, start creating one.
    This needs to be a classic token; creation is explained in [this guide](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens).
