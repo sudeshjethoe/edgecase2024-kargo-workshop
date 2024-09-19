@@ -3,7 +3,7 @@
 ## Steps for the workshop
 
 1. Go to [this repository](https://github.com/fullstaq-labs/edgecase2024-kargo-demo.git) and fork it.\
-   Copy the URL of this forked repo, as you'll need it in step 4.
+   Copy the URL (it should end with **.git**) of this forked repo, as you'll need it in step 4.
 
 2. Start the dev container, which can be done in 2 ways:
 
@@ -40,7 +40,7 @@
 
 4. Run the following command in the container (the value should be the url of the repo you just forked.):
    ```bash
-   export GITOPS_REPO_URL="<Replace this value>"
+   export GITOPS_REPO_URL="<Replace this value>.git"
    ```
 
 5. If you don't have a GitHub token, start creating one.
